@@ -48,7 +48,38 @@ class Cloze():
         # status
         self.status = u''
 
+        # :word:foobar
+        # :hint:this is foobar
+        # :note:this is a note.
+
     def _generateClozeList(self):
+        word = u''
+        hint = u''
+        note = u''
+        listClozes=[]
+        wordkey = u':word'
+        hintkey = u':hint'
+        notekey = ':note'
+        for line in self.notes.splitlines():
+            key = line[:5]
+            text = line[5:].strip()
+            #listClozes.append({'key': key, 'text': text, 'line': line, 'word' : wordkey, 'hint': str(key == wordkey)})
+            if key == wordkey:
+                if len(word) >= 1:
+                    listClozes.append({'word': word, 'hint': hint, 'note': note})
+                hint = u''
+                note = u''
+                word = text
+            elif key == hintkey:
+                hint = text
+            elif key == notekey:
+                note = text
+        else:
+            if len(word) >= 1:
+                listClozes.append({'word': word, 'hint': hint, 'note': note})
+        return listClozes
+
+    def _generateClozeList_orig(self):
         # Manual (space delimeter)
         if self.mode == 'space':
             listClozes = listManualSpace(self.clozes)
@@ -59,7 +90,7 @@ class Cloze():
         elif self.mode == 'kanji':
             listClozes = listKanjiHanzi(self.clozes)
         # remove any empty (whitespace only) entries
-        listClozes = [ clz for clz in listClozes if clz.strip() ]
+        listClozes = [clz for clz in listClozes if clz.strip()]
         # remove duplicates
         listClozes = removeDups(listClozes)
         return listClozes
@@ -71,15 +102,15 @@ class Cloze():
         else:
             return unicode.replace( text, cloze, cloze_text )
 
-    def _clozePrepare(self, text, cloze, num):
+    def _clozePrepare(self, text, cloze, hint, num):
         # replace the text with a cloze sub
-        cloze_stub = u'{{c%d::' % num + u'}}'
+        cloze_stub = u'{{c%d::' % num + u'::%s}}' % hint
         return self._clozeReplace( text, cloze, cloze_stub )
 
-    def _clozeFinalize(self, text, cloze, num):
+    def _clozeFinalize(self, text, cloze, hint, num):
         # replace the subs with the final cloze
-        cloze_stub = u'{{c%d::' % num + u'}}'
-        cloze_text = u'{{c%d::' % num + cloze + u'}}'
+        cloze_stub = u'{{c%d::' % num + u'::%s}}' % hint
+        cloze_text = u'{{c%d::' % num + cloze + u'::%s}}' % hint
         return unicode.replace( text, cloze_stub, cloze_text )
 
     def createNote(self):
@@ -92,7 +123,7 @@ class Cloze():
             note.model()['did'] = self.mw.col.decks.id(self.deck)
         # verify this is an Anki 2 cloze model
         if not note.model()['type'] == MODEL_CLOZE:
-            self.status = u'Error: '+note.model()['name']+' is not a Cloze model.' 
+            self.status = u'Error: '+note.model()['name']+' is not a Cloze model.'
             return False
         # create a list of cloze candidates
         listClozes = self._generateClozeList()
@@ -103,16 +134,17 @@ class Cloze():
             excerpt += u'...'
         # convert the newlines to html
         self.text = unicode.replace( self.text, '\n', '<br>' )
+        #self.notes = str(listClozes)
         self.notes = unicode.replace( self.notes, '\n', '<br>' )
-        self.source = unicode.replace( self.source, '\n', '<br>' )            
+        self.source = unicode.replace( self.source, '\n', '<br>' )
         # save the text for the reading generation
         reading = self.text
         # pre-process all of the closes
         for i, clz in enumerate(listClozes):
-            self.text = self._clozePrepare( self.text, clz, i+1 )
+            self.text = self._clozePrepare( self.text, clz['word'], clz['hint'], i+1 )
         # finalize the clozes, this two stage process prevents errors with embedded clozes
         for i, clz in enumerate(listClozes):
-            self.text = self._clozeFinalize( self.text, clz, i+1 )
+            self.text = self._clozeFinalize( self.text, clz['word'], clz['hint'], i+1 )
         # set the tags
         note.tags = self.mw.col.tags.split(self.tags)
         # deal with the source field
