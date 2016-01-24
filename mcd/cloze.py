@@ -59,24 +59,19 @@ class Cloze():
         listClozes=[]
         wordkey = u':word'
         hintkey = u':hint'
-        notekey = ':note'
         for line in self.notes.splitlines():
             key = line[:5]
             text = line[5:].strip()
-            #listClozes.append({'key': key, 'text': text, 'line': line, 'word' : wordkey, 'hint': str(key == wordkey)})
             if key == wordkey:
                 if len(word) >= 1:
-                    listClozes.append({'word': word, 'hint': hint, 'note': note})
+                    listClozes.append({'word': word, 'hint': hint})
                 hint = u''
-                note = u''
                 word = text
             elif key == hintkey:
                 hint = text
-            elif key == notekey:
-                note = text
         else:
             if len(word) >= 1:
-                listClozes.append({'word': word, 'hint': hint, 'note': note})
+                listClozes.append({'word': word, 'hint': hint})
         return listClozes
 
     def _generateClozeList_orig(self):
